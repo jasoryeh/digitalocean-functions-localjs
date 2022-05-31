@@ -1,0 +1,15 @@
+{
+  "name": "do-functions-local-js",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "run": "node exec.js"
+  },
+  "author": "",
+  "license": "To Be Determined",
+  "dependencies": {
+    "express": "^4.18.1",
+    "js-yaml": "^4.1.0"
+  }
+}
