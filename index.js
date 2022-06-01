@@ -1,19 +1,6 @@
 const yaml = require('js-yaml');
 const fs = require('fs');
 
-function getCircularReplacer() {
-    const seen = new WeakSet();
-    return (key, value) => {
-      if (typeof value === "object" && value !== null) {
-        if (seen.has(value)) {
-          return;
-        }
-        seen.add(value);
-      }
-      return value;
-    }
-};
-
 const vm = require('vm');
 async function inVM(script, args, environment) {
     let context = {
