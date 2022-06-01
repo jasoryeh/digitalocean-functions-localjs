@@ -85,7 +85,8 @@ module.exports.run = function (port = 80, projectYMLFile = './project.yml', pack
     
                 let runInVM = await inVM(entrypointScript, args, specificEnvironment);
                 let exec = runInVM.returned;
-                res.status(exec.body ? (exec.status ?? 500) : 204).send(exec.body ?? null);
+                res.header("Content-Type",'application/json');
+                res.status(exec.body ? (exec.status ?? 500) : 204).send(JSON.stringify(exec.body, null, 4));
             });
         }
     }
