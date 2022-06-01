@@ -5,19 +5,20 @@ const vm = require('vm');
 async function inVM(script, args, environment) {
     let context = {
         require: require,
-        process: {
-            environment: environment
-        },
         console: console,
+        process: process,
         backContext: {
             args: args,
             returned: null
         }
     };
+    let envCopy = {...process.env};
+    context.process.env = environment;
+    Object.assign(process.env, environment);
+
     vm.createContext(context);
     
     let scr = `let entry = require('${script}'); backContext.returned = entry.main(backContext.args);`;
-
     vm.runInContext(scr, context, {
         lineOffset: 0,
         columnOffset: 0,
@@ -25,6 +26,7 @@ async function inVM(script, args, environment) {
         timeout: 30000
     })
     context.backContext.returned = await context.backContext.returned;
+    process.eenv = envCopy;
     return context.backContext;
 }
 
@@ -37,9 +39,6 @@ module.exports.run = function (port = 80, projectYMLFile = './project.yml', pack
 
     var fsProject = fs.readFileSync(projectYMLFile);
     var config = yaml.load(fsProject);
-
-    
-    Object.assign(process.env, config.environment);
 
     for (let package of config.packages) {
         for (let action of package.actions) {
@@ -54,7 +53,6 @@ module.exports.run = function (port = 80, projectYMLFile = './project.yml', pack
             Object.assign(environment, config.environment);
             console.log("Registering " + route + " to " + actionLocation);
             app.all(route + "*", async function (req, res, next) {
-                console.log(req.body);
                 let parseURL = new URL("https://localhost"  + req.url);
                 let path = parseURL.pathname;
                 let args = {};
