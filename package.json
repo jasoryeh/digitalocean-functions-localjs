@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "run": "node exec.js"
+    "start": "node exec.js"
   },
   "author": "",
   "license": "To Be Determined",
