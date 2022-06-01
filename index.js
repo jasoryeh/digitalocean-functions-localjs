@@ -54,7 +54,7 @@ module.exports.run = function (port = 80, projectYMLFile = './project.yml', pack
             console.log("Registering " + route + " to " + actionLocation);
             app.all(route + "*", async function (req, res, next) {
                 let parseURL = new URL("https://localhost"  + req.url);
-                let path = parseURL.pathname;
+                let path = parseURL.pathname.replace("/" + subdirectory, "");
                 let args = {};
                 Object.assign(args, {
                     "__ow_method": req.method,
