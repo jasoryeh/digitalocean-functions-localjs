@@ -1,8 +1,12 @@
 const yaml = require('js-yaml');
 const fs = require('fs');
-
 const vm = require('vm');
+
 async function inVM(script, args, environment) {
+    /**
+     * The script's context, in other words: the objects accessible to the script.
+     * varname: object
+     */
     let context = {
         require: require,
         console: console,
@@ -12,41 +16,56 @@ async function inVM(script, args, environment) {
             returned: null
         }
     };
+
+    // Merge the environment variables passed to this function, 
+    //   and our process's environment variables 
+    //   into the context's `process.env`
+    // - Yes, I recognize this is overwriting our current `process.env`, which is why a copy is made to be restored later.
     let envCopy = {...process.env};
     context.process.env = environment;
     Object.assign(process.env, environment);
 
+    // Create the VM
     vm.createContext(context);
-    
+    // - DO Functions' return values determine the response, we build a small script here to pass this return value back to us.
     let scr = `let entry = require('${script}'); backContext.returned = entry.main(backContext.args);`;
-    var start = process.hrtime();
+    var start = process.hrtime(); // start timing
+    // Execute the script in the VM
     vm.runInContext(scr, context, {
         lineOffset: 0,
         columnOffset: 0,
         displayErrors: true,
         timeout: 30000
-    })
+    });
+    // Wait for (potentially asynchronous) execution to finish.
     context.backContext.returned = await context.backContext.returned;
-    var end = process.hrtime(start);
-    console.log(`Exec: ${end[0]}s ${end[1]/1000000}ms`)
+    var end = process.hrtime(start);  // end timing
+    console.log(`Executed in: ${end[0]}s ${end[1]/1000000}ms`); // timing info
+    // Write our original environment to `process.env`
     process.eenv = envCopy;
+    // Return response
     return context.backContext;
 }
 
 module.exports.run = function (port = 80, projectYMLFile = './project.yml', packagesDirectory = './packages') {
-    console.log(`Setting up to server functions at ${projectYMLFile} located at ${packagesDirectory} on port ${port}`);
+    console.log(`Setting up to serve functions at ${projectYMLFile} located at ${packagesDirectory} on port ${port}`);
+    console.log(`Listening on :${port}\n\n`);
 
+    // Using express as our web server.
     let express = require('express');
     let app = express();
-    app.use(express.json());
+    app.use(express.json());  // primarily handling JSON only for now.
 
+    // Read project configurations
     var fsProject = fs.readFileSync(projectYMLFile);
     var config = yaml.load(fsProject);
 
+    // Load packages and actions
     for (let package of config.packages) {
         for (let action of package.actions) {
             if (!action.runtime.includes("nodejs")) {
-                console.log("Skipping action " + action.name + " since it is a nodejs runtime.");
+                // We only support nodejs runtimes here.
+                console.log("Skipping action " + action.name + " since it is not a nodejs runtime.");
                 continue;
             }
             let subdirectory = package.name + "/" + action.name;
@@ -59,6 +78,7 @@ module.exports.run = function (port = 80, projectYMLFile = './project.yml', pack
             let environment = {};
             Object.assign(environment, config.environment);
             console.log("Registering " + route + " to " + actionLocation);
+            // Register a route to handle all routes '/package/action*'
             app.all(route + "*", async function (req, res, next) {
                 let parseURL = new URL("https://localhost"  + req.url);
                 let path = parseURL.pathname.replace("/" + subdirectory, "");
@@ -85,8 +105,25 @@ module.exports.run = function (port = 80, projectYMLFile = './project.yml', pack
             });
         }
     }
+
+    app.get('/_routes', (req, res, next) => {
+        let routes = [];
+        for (let layer of app._router.stack) {
+            if (layer.route) {
+                routes.push({path: layer.route.path, methods: layer.route.methods});
+            } else if (layer.name == 'router') {
+                for (let sl of layer.handle.stack) {
+                    if (sl && sl.route) {
+                        routes.push({path: sl.route.path, methods: sl.route.methods});
+                    }
+                }
+            }
+        }
+        res.header('Content-Type', 'application/json');
+        return res.send(JSON.stringify(routes, null, 4));
+    });
     
     app.listen(port, () => {
-        console.log("Now running!");
+        console.log("\n\nNow running!");
     });
 };
