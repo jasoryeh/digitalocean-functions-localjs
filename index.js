@@ -1,6 +1,7 @@
 const yaml = require('js-yaml');
 const fs = require('fs');
 const vm = require('vm');
+const child_process = require('child_process');
 
 async function inVM(script, args, environment) {
     /**
@@ -47,7 +48,7 @@ async function inVM(script, args, environment) {
     return context.backContext;
 }
 
-module.exports.run = function (port = 80, projectYMLFile = './project.yml', packagesDirectory = './packages') {
+module.exports.run = async function (port = 80, projectYMLFile = './project.yml', packagesDirectory = './packages') {
     console.log(`Setting up to serve functions at ${projectYMLFile} located at ${packagesDirectory} on port ${port}`);
     console.log(`Listening on :${port}\n\n`);
 
@@ -55,6 +56,28 @@ module.exports.run = function (port = 80, projectYMLFile = './project.yml', pack
     let express = require('express');
     let app = express();
     app.use(express.json());  // primarily handling JSON only for now.
+
+    app.get('/_routes', (req, res, next) => {
+        let routes = [];
+        for (let layer of app._router.stack) {
+            if (layer.route) {
+                routes.push({path: layer.route.path, methods: layer.route.methods});
+            } else if (layer.name == 'router') {
+                for (let sl of layer.handle.stack) {
+                    if (sl && sl.route) {
+                        routes.push({path: sl.route.path, methods: sl.route.methods});
+                    }
+                }
+            }
+        }
+        res.header('Content-Type', 'application/json');
+        return res.send(JSON.stringify(routes, null, 4));
+    });
+
+    app.use((req, res, next) => {
+        res.header("Access-Control-Allow-Origin", '*');
+        next();
+    });
 
     // Read project configurations
     var fsProject = fs.readFileSync(projectYMLFile);
@@ -77,6 +100,9 @@ module.exports.run = function (port = 80, projectYMLFile = './project.yml', pack
             let entrypointScript = actionLocation + "/" + mainEntrypoint;
             let environment = {};
             Object.assign(environment, config.environment);
+            //console.log(`Executing NPM install on ${actionLocation}`);
+            await child_process.exec('npm install', {cwd: actionLocation});
+            //console.log(`...done`);
             console.log("Registering " + route + " to " + actionLocation);
             // Register a route to handle all routes '/package/action*'
             app.all(route + "*", async function (req, res, next) {
@@ -105,23 +131,6 @@ module.exports.run = function (port = 80, projectYMLFile = './project.yml', pack
             });
         }
     }
-
-    app.get('/_routes', (req, res, next) => {
-        let routes = [];
-        for (let layer of app._router.stack) {
-            if (layer.route) {
-                routes.push({path: layer.route.path, methods: layer.route.methods});
-            } else if (layer.name == 'router') {
-                for (let sl of layer.handle.stack) {
-                    if (sl && sl.route) {
-                        routes.push({path: sl.route.path, methods: sl.route.methods});
-                    }
-                }
-            }
-        }
-        res.header('Content-Type', 'application/json');
-        return res.send(JSON.stringify(routes, null, 4));
-    });
     
     app.listen(port, () => {
         console.log("\n\nNow running!");
