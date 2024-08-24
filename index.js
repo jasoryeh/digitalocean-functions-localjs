@@ -134,7 +134,7 @@ module.exports.run = async function (port = 80, projectYMLFile = './project.yml'
                         console.log("Header: " + headerKey + " - " + exec.headers[headerKey]);
                         res.header(headerKey, exec.headers[headerKey]);
                     }
-                    res.status(exec.body ? (exec.status ?? 500) : 204)
+                    res.status(exec.body ? (exec.statusCode ?? 500) : 204)
                         .send(JSON.stringify(exec.body, null, 4));
                 }
             });
