@@ -130,7 +130,12 @@ module.exports.run = async function (port = 80, projectYMLFile = './project.yml'
                 if (!exec) {
                     res.status(500).send(JSON.stringify({"error": true, "message": "No response!"}, null, 4));
                 } else {
-                    res.status(exec.body ? (exec.status ?? 500) : 204).send(JSON.stringify(exec.body, null, 4));
+                    for (let headerKey in exec.headers) {
+                        console.log("Header: " + headerKey + " - " + exec.headers[headerKey]);
+                        res.header(headerKey, exec.headers[headerKey]);
+                    }
+                    res.status(exec.body ? (exec.status ?? 500) : 204)
+                        .send(JSON.stringify(exec.body, null, 4));
                 }
             });
         }
