@@ -98,11 +98,23 @@ module.exports.run = async function (port = 80, projectYMLFile = './project.yml'
             let mainEntrypoint = actionConfig.main;
             let route = "/" + subdirectory;
             let entrypointScript = actionLocation + "/" + mainEntrypoint;
+
+            // generate environment
             let environment = {};
             Object.assign(environment, config.environment);
-            //console.log(`Executing NPM install on ${actionLocation}`);
+
+            // subsitute envs in project.yml
+            for (let key in environment) {
+                for (let envKey in process.env) {
+                    environment[key] = environment[key].replace(`\${${envKey}}`, process.env[envKey]);
+                }
+            }
+
+            // install npm
+            console.log(`Executing NPM install on ${actionLocation}`);
             await child_process.exec('npm install', {cwd: actionLocation});
-            //console.log(`...done`);
+            console.log(`...done`);
+
             console.log("Registering " + route + " to " + actionLocation);
             // Register a route to handle all routes '/package/action*'
             app.all(route + "*", async function (req, res, next) {
