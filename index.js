@@ -76,6 +76,11 @@ module.exports.run = async function (port = 80, projectYMLFile = './project.yml'
 
     app.use((req, res, next) => {
         res.header("Access-Control-Allow-Origin", '*');
+        res.header("Access-Control-Allow-Methods", '*');
+        res.header("Access-Control-Allow-Headers", '*');
+        if (req.method.toUpperCase() == "OPTIONS") {
+            return res.send(null).status(200);
+        }
         next();
     });
 
