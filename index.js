@@ -43,7 +43,7 @@ async function inVM(script, args, environment) {
     var end = process.hrtime(start);  // end timing
     console.log(`Executed in: ${end[0]}s ${end[1]/1000000}ms`); // timing info
     // Write our original environment to `process.env`
-    process.eenv = envCopy;
+    process.env = envCopy;
     // Return response
     return context.backContext;
 }
