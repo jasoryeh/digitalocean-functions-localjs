@@ -138,9 +138,14 @@ module.exports.run = async function (port = 80, projectYMLFile = './project.yml'
                 let path = parseURL.pathname.replace("/" + subdirectory, "");
                 let args = {};
                 Object.assign(args, {
-                    "__ow_method": req.method,
                     "__ow_headers": req.headers,
-                    "__ow_path": path
+                    "__ow_method": req.method,
+                    "__ow_path": path,
+                    "http": {
+                        "headers": req.headers,
+                        "method": req.method,
+                        "path": path,
+                    }
                 });
                 Object.assign(args, req.query);
                 Object.assign(args, req.body);
